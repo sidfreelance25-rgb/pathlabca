@@ -52,7 +52,7 @@ export default function Profile({
                 <Heading
                     variant="small"
                     title="Theme"
-                    description="Light and dark apply across the whole app. The same switch is in the side navigation."
+                    description="Choose light or dark. The same switch is in the side navigation and on the dashboard."
                 />
                 <AppearanceToggleTab />
             </div>
