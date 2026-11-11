@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\CriticalAlert;
 use App\Models\LetterheadTemplate;
+use App\Models\Order;
 use App\Models\Patient;
 use App\Models\ReportVersion;
 use App\Models\Result;
@@ -32,8 +33,34 @@ class LaboratoryWorkflowTest extends TestCase
     public function test_a_technician_can_open_a_new_report(): void
     {
         $technician = User::query()->where('email', 'tech@pathlabca.test')->firstOrFail();
+        $cbc = TestDefinition::query()->where('code', 'CBC')->whereNull('owner_user_id')->firstOrFail();
 
         $this->actingAs($technician)->get(route('orders.create'))->assertOk();
+
+        $created = $this->actingAs($technician)->post(route('orders.store'), [
+            'patient_mode' => 'new',
+            'patient' => [
+                'name' => 'Anita Rao',
+                'sex' => 'female',
+                'date_of_birth' => '1991-03-03',
+                'phone' => '9811111111',
+            ],
+            'priority' => 'routine',
+            'test_ids' => [$cbc->id],
+        ]);
+
+        $patient = Patient::query()->where('name', 'Anita Rao')->firstOrFail();
+        $order = Order::query()->where('patient_id', $patient->id)->firstOrFail();
+        $created->assertRedirect(route('orders.results', $order));
+        $this->actingAs($technician)->get(route('orders.results', $order))->assertOk();
+
+        $existing = Patient::query()->where('is_demo', true)->firstOrFail();
+        $this->actingAs($technician)->post(route('orders.store'), [
+            'patient_mode' => 'existing',
+            'patient_id' => $existing->id,
+            'priority' => 'urgent',
+            'test_ids' => [$cbc->id],
+        ])->assertRedirect();
     }
 
     public function test_catalogue_covers_the_major_laboratory_types(): void
