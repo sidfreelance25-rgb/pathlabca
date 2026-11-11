@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\LetterheadController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use Illuminate\Auth\Middleware\RequirePassword;
@@ -10,6 +11,9 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::get('settings/letterhead', [LetterheadController::class, 'edit'])->name('letterhead.edit');
+    Route::put('settings/letterhead', [LetterheadController::class, 'update'])->name('letterhead.update');
+    Route::post('settings/letterhead/preview', [LetterheadController::class, 'preview'])->name('letterhead.preview');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

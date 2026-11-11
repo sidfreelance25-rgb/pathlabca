@@ -17,6 +17,11 @@ const sidebarNavItems: NavItem[] = [
         icon: null,
     },
     {
+        title: 'Letterhead',
+        href: '/settings/letterhead',
+        icon: null,
+    },
+    {
         title: 'Security',
         href: editSecurity(),
         icon: null,
@@ -30,6 +35,7 @@ const sidebarNavItems: NavItem[] = [
 
 export default function SettingsLayout({ children }: PropsWithChildren) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
+    const wide = isCurrentOrParentUrl('/settings/letterhead');
 
     return (
         <div className="px-4 py-6">
@@ -67,8 +73,8 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
 
                 <Separator className="my-6 lg:hidden" />
 
-                <div className="flex-1 md:max-w-2xl">
-                    <section className="max-w-xl space-y-12">
+                <div className={cn('min-w-0 flex-1', !wide && 'md:max-w-2xl')}>
+                    <section className={cn('space-y-12', !wide && 'max-w-xl')}>
                         {children}
                     </section>
                 </div>

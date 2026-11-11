@@ -1,6 +1,7 @@
 import { Form, Head, usePage } from '@inertiajs/react';
 import { Link } from '@inertiajs/react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
+import AppearanceToggleTab from '@/components/appearance-tabs';
 import DeleteUser from '@/components/delete-user';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -15,12 +16,29 @@ type PageProps = {
     auth: Auth;
 };
 
+type LetterheadLab = {
+    name: string;
+    address: string;
+    phone: string;
+    email: string;
+    doctor: string;
+    qual: string;
+    tagline: string;
+    iso: string;
+};
+
 export default function Profile({
     mustVerifyEmail,
     status,
+    letterhead,
+    letterheadMissing = [],
+    letterheadSaved = false,
 }: {
     mustVerifyEmail: boolean;
     status?: string;
+    letterhead?: { lab: LetterheadLab };
+    letterheadMissing?: string[];
+    letterheadSaved?: boolean;
 }) {
     const { auth } = usePage<PageProps>().props;
 
@@ -29,6 +47,15 @@ export default function Profile({
             <Head title="Profile settings" />
 
             <h1 className="sr-only">Profile settings</h1>
+
+            <div className="space-y-3 rounded-xl border p-4">
+                <Heading
+                    variant="small"
+                    title="Theme"
+                    description="Light and dark apply across the whole app. The same switch is in the side navigation."
+                />
+                <AppearanceToggleTab />
+            </div>
 
             <div className="space-y-6">
                 <Heading
@@ -121,6 +148,49 @@ export default function Profile({
                         </>
                     )}
                 </Form>
+            </div>
+
+            <div className="space-y-3 rounded-xl border p-4">
+                <Heading
+                    variant="small"
+                    title="Laboratory letterhead"
+                    description="Lab name, doctor and header design are saved on your account and used on reports you release."
+                />
+                <dl className="grid grid-cols-2 gap-2 text-sm">
+                    <dt className="text-muted-foreground">Lab name</dt>
+                    <dd>{letterhead?.lab.name || 'Missing'}</dd>
+                    <dt className="text-muted-foreground">Address</dt>
+                    <dd>{letterhead?.lab.address || 'Missing'}</dd>
+                    <dt className="text-muted-foreground">Phone</dt>
+                    <dd>{letterhead?.lab.phone || 'Missing'}</dd>
+                    <dt className="text-muted-foreground">Email</dt>
+                    <dd>{letterhead?.lab.email || 'Missing'}</dd>
+                    <dt className="text-muted-foreground">Doctor</dt>
+                    <dd>{letterhead?.lab.doctor || 'Missing'}</dd>
+                    <dt className="text-muted-foreground">Qualification</dt>
+                    <dd>{letterhead?.lab.qual || 'Missing'}</dd>
+                    <dt className="text-muted-foreground">Certification</dt>
+                    <dd>{letterhead?.lab.iso || '—'}</dd>
+                    <dt className="text-muted-foreground">Tagline</dt>
+                    <dd>{letterhead?.lab.tagline || '—'}</dd>
+                </dl>
+                {letterheadMissing.length > 0 ? (
+                    <p className="text-sm text-amber-700">
+                        Still needed: {letterheadMissing.join(', ')}.
+                        {letterheadSaved
+                            ? ''
+                            : ' Save the letterhead to keep them on your account.'}
+                    </p>
+                ) : (
+                    <p className="text-sm text-green-700">
+                        Lab name, contact details and doctor are filled in.
+                    </p>
+                )}
+                <Button asChild variant="outline">
+                    <Link href="/settings/letterhead">
+                        Edit letterhead and preview
+                    </Link>
+                </Button>
             </div>
 
             <DeleteUser />

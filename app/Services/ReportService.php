@@ -8,6 +8,8 @@ use App\Models\ReportTemplate;
 use App\Models\ReportVersion;
 use App\Models\Result;
 use App\Models\User;
+use App\Support\Letterhead;
+use App\Support\LetterheadDocument;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -158,10 +160,7 @@ class ReportService
             ]);
 
             $snapshot = $this->snapshot($order, $template, $actor, $report->verification_token, $status, $report->correction_reason);
-            $binary = Pdf::loadView('reports.clinical', [
-                'report' => $snapshot,
-                'headerStyle' => $template->header_style,
-            ])->setPaper('a4')->setOption('isPhpEnabled', true)->output();
+            $binary = $this->pdfBinary($snapshot);
             $path = 'reports/'.$report->report_number.'-v'.$report->version.'-'.$status.'.pdf';
 
             if ($report->file_path && $report->status === 'draft') {
@@ -354,7 +353,68 @@ class ReportService
             'verification_url' => route('reports.verify', $token),
             'qr' => $this->barcodes->qrDataUri(route('reports.verify', $token)),
             'generated_at' => now()->toIso8601String(),
+            'letterhead' => Letterhead::forUser($actor),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function pdfBinary(array $snapshot): string
+    {
+        $rows = [];
+        $title = 'Laboratory report';
+        $sections = is_array($snapshot['sections'] ?? null) ? $snapshot['sections'] : [];
+
+        foreach ($sections as $panels) {
+            if (! is_array($panels)) {
+                continue;
+            }
+
+            foreach ($panels as $panel) {
+                if (! is_array($panel)) {
+                    continue;
+                }
+
+                $title = (string) ($panel['name'] ?? $title);
+                foreach ($panel['rows'] ?? [] as $row) {
+                    if (is_array($row)) {
+                        $rows[] = $row;
+                    }
+                }
+            }
+        }
+
+        $patient = is_array($snapshot['patient'] ?? null) ? $snapshot['patient'] : [];
+        $specimens = is_array($snapshot['specimens'] ?? null) ? $snapshot['specimens'] : [];
+        $firstSpecimen = is_array($specimens[0] ?? null) ? $specimens[0] : [];
+        $doctor = is_array($snapshot['doctor'] ?? null) ? $snapshot['doctor'] : [];
+        $design = is_array($snapshot['letterhead'] ?? null) ? $snapshot['letterhead'] : Letterhead::defaults();
+        $document = app(LetterheadDocument::class);
+        $html = $document->html($design, [
+            'title' => $title,
+            'patient' => (string) ($patient['name'] ?? ''),
+            'agesex' => (string) (($patient['age'] ?? '—').' / '.($patient['sex'] ?? '')),
+            'sample_id' => (string) ($firstSpecimen['barcode'] ?? ($snapshot['order']['number'] ?? 'SAMPLE')),
+            'refBy' => (string) ($doctor['name'] ?? '—'),
+            'repDate' => now()->format('d M Y'),
+            'collected' => (string) ($firstSpecimen['collected_at'] ?? '—'),
+            'rows' => $rows,
+            'qr' => (string) ($snapshot['verification_url'] ?? ''),
+            'note' => '',
+            'draft' => ! in_array($snapshot['status'] ?? '', ['released', 'delivered'], true),
+            'demo' => (bool) ($snapshot['is_demo'] ?? false),
+        ]);
+        $chrome = $document->pdf($html);
+
+        if (is_string($chrome)) {
+            return $chrome;
+        }
+
+        return Pdf::loadView('reports.clinical', [
+            'report' => $snapshot,
+            'headerStyle' => 'branded_left',
+        ])->setPaper('a4')->setOption('isPhpEnabled', true)->output();
     }
 
     private function nextReportNumber(): string

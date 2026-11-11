@@ -10,6 +10,7 @@ use App\Models\Specimen;
 use App\Models\SpecimenType;
 use App\Models\TestDefinition;
 use App\Models\User;
+use App\Models\UserTestSetting;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -25,6 +26,9 @@ class OrderService
         $tests = TestDefinition::query()
             ->where('lab_id', $patient->lab_id)
             ->where('active', true)
+            ->where(function ($query) use ($actor): void {
+                $query->whereNull('owner_user_id')->orWhere('owner_user_id', $actor->id);
+            })
             ->whereIn('id', $testIds)
             ->get();
 
@@ -49,14 +53,19 @@ class OrderService
 
             $amount = 0;
             $specimenTypes = [];
+            $prices = UserTestSetting::query()
+                ->where('user_id', $actor->id)
+                ->whereIn('test_definition_id', $tests->pluck('id'))
+                ->pluck('price_paise', 'test_definition_id');
 
             foreach ($tests as $test) {
+                $price = $prices[$test->id] ?? $test->price_paise;
                 $order->items()->create([
                     'test_definition_id' => $test->id,
                     'status' => 'pending',
-                    'price_paise' => $test->price_paise,
+                    'price_paise' => $price,
                 ]);
-                $amount += $test->price_paise;
+                $amount += $price;
                 $specimenTypes[$test->specimen_type_id] = true;
             }
 

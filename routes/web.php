@@ -28,6 +28,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('lab.permission:catalogue.read')->group(function () {
         Route::get('catalogue', [CatalogueController::class, 'index'])->name('catalogue.index');
         Route::get('catalogue/{test}', [CatalogueController::class, 'show'])->name('catalogue.show');
+        Route::patch('catalogue/{test}', [CatalogueController::class, 'update'])->name('catalogue.update');
+        Route::post('catalogue', [CatalogueController::class, 'store'])->name('catalogue.store');
     });
 
     Route::middleware('lab.permission:order.create')->group(function () {

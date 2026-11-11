@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class TestDefinition extends Model
 {
     protected $fillable = [
-        'lab_id', 'department_id', 'specimen_type_id', 'code', 'name', 'loinc', 'synonyms',
+        'lab_id', 'owner_user_id', 'department_id', 'specimen_type_id', 'code', 'name', 'loinc', 'synonyms',
         'method', 'is_panel', 'price_paise', 'tat_minutes', 'report_section', 'display_order',
         'catalogue_version', 'active', 'collection_notes',
     ];

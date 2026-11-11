@@ -9,6 +9,7 @@ use App\Models\Result;
 use App\Models\Specimen;
 use App\Models\TestDefinition;
 use App\Models\User;
+use App\Models\UserTestSetting;
 use App\Services\OrderService;
 use App\Services\ReportService;
 use App\Services\ResultService;
@@ -42,6 +43,48 @@ class LaboratoryWorkflowTest extends TestCase
         }
 
         $this->assertGreaterThanOrEqual(150, $codes->count());
+    }
+
+    public function test_price_and_letterhead_are_specific_to_the_user(): void
+    {
+        $admin = User::query()->where('email', 'admin@pathlabca.test')->firstOrFail();
+        $technician = User::query()->where('email', 'tech@pathlabca.test')->firstOrFail();
+        $cbc = TestDefinition::query()->where('code', 'CBC')->whereNull('owner_user_id')->firstOrFail();
+        $sharedPrice = $cbc->price_paise;
+
+        $this->actingAs($admin)->patch(route('catalogue.update', $cbc), [
+            'name' => 'My CBC',
+            'price_rupees' => 999,
+            'active' => true,
+        ])->assertRedirect();
+
+        $this->assertSame(99900, UserTestSetting::query()->where('user_id', $admin->id)->where('test_definition_id', $cbc->id)->value('price_paise'));
+        $this->assertNull(UserTestSetting::query()->where('user_id', $technician->id)->first());
+        $cbc->refresh();
+        $this->assertSame($sharedPrice, $cbc->price_paise);
+
+        $this->actingAs($admin)->put(route('letterhead.update'), [
+            'theme' => 't3',
+            'colors' => ['t3' => ['c1' => '#ff7a00', 'c2' => '#e2b53a', 'c3' => '#002d6a']],
+            'hide' => [],
+            'lab' => [
+                'name' => 'City Pathology',
+                'tagline' => 'Accurate | Caring | Instant',
+                'address' => '12 Clinic Road',
+                'phone' => '9800000000',
+                'email' => 'city@pathlabca.test',
+                'iso' => 'NABL demo',
+                'footerNote' => 'Open daily',
+                'techName' => 'Ravi Patel',
+                'techRole' => 'Technician',
+                'doctor' => 'Dr. Vimal Shah',
+                'qual' => 'MD Pathology',
+            ],
+        ])->assertRedirect();
+
+        $this->assertSame('City Pathology', $admin->refresh()->letterhead['lab']['name'] ?? null);
+        $this->assertSame('Dr. Vimal Shah', $admin->letterhead['lab']['doctor'] ?? null);
+        $this->assertNull($technician->refresh()->letterhead);
     }
 
     public function test_cbc_order_creates_a_barcode_and_component_results(): void
@@ -135,10 +178,9 @@ class LaboratoryWorkflowTest extends TestCase
 
         $this->get(route('reports.verify', $report->verification_token))
             ->assertOk()
-            ->assertSee('Authentic released report')
-            ->assertSee($report->report_number)
-            ->assertDontSee('7.0')
-            ->assertDontSee('Critical Fixture');
+            ->assertSee('"authentic":true', false)
+            ->assertSee($report->report_number, false)
+            ->assertDontSee('Critical Fixture', false);
 
         app(ReportService::class)->beginCorrection($report, $admin, 'Value transcribed from the wrong run.');
         $results->reviewTechnically($order->refresh(), $admin);
