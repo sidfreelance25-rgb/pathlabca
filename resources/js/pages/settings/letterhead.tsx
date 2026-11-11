@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,6 +63,54 @@ const toggles: [string, string][] = [
     ['wm', 'Watermark'],
 ];
 
+const pageWidth = 860;
+const pageHeight = 1220;
+
+function LetterheadPreview({ html }: { html: string }) {
+    const box = useRef<HTMLDivElement>(null);
+    const [scale, setScale] = useState(0.5);
+    const [width, setWidth] = useState(0);
+
+    useEffect(() => {
+        const element = box.current;
+        if (!element) {
+            return;
+        }
+
+        const fit = () => {
+            const next = element.clientWidth;
+            setWidth(next);
+            setScale(next === 0 ? 0.5 : Math.min(1, next / pageWidth));
+        };
+        fit();
+        const observer = new ResizeObserver(fit);
+        observer.observe(element);
+
+        return () => observer.disconnect();
+    }, []);
+
+    return (
+        <div
+            ref={box}
+            className="sticky top-4 w-full overflow-hidden rounded-xl border bg-neutral-200 dark:bg-neutral-800"
+            style={{ height: pageHeight * scale }}
+        >
+            <iframe
+                title="Letterhead preview"
+                srcDoc={html}
+                className="absolute top-0 border-0 bg-neutral-200"
+                style={{
+                    width: pageWidth,
+                    height: pageHeight,
+                    transform: `scale(${scale})`,
+                    transformOrigin: 'top left',
+                    left: Math.max(0, (width - pageWidth * scale) / 2),
+                }}
+            />
+        </div>
+    );
+}
+
 function csrfToken(): string {
     const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
 
@@ -90,7 +138,7 @@ function readImage(
                 ?.drawImage(image, 0, 0, canvas.width, canvas.height);
             done(canvas.toDataURL('image/png'));
         };
-        image.src = String(reader.result);
+        image.src = typeof reader.result === 'string' ? reader.result : '';
     };
     reader.readAsDataURL(file);
 }
@@ -173,7 +221,7 @@ export default function LetterheadSettings({
     return (
         <>
             <Head title="Letterhead" />
-            <div className="grid items-start gap-6 xl:grid-cols-[340px_1fr]">
+            <div className="grid items-start gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
                 <form
                     className="space-y-4"
                     onSubmit={(event) => {
@@ -402,11 +450,7 @@ export default function LetterheadSettings({
                         )}
                     </div>
                 </form>
-                <iframe
-                    title="Letterhead preview"
-                    className="h-[1120px] w-full rounded-xl border bg-neutral-200"
-                    srcDoc={html}
-                />
+                <LetterheadPreview html={html} />
             </div>
         </>
     );
