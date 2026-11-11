@@ -62,7 +62,12 @@ class LaboratorySeeder extends Seeder
             'urinalysis' => 'Urinalysis',
             'microbiology' => 'Microbiology',
             'histopathology' => 'Histopathology',
+            'cytology' => 'Cytology',
             'immunology' => 'Immunology',
+            'blood_bank' => 'Blood bank',
+            'molecular' => 'Molecular',
+            'clinical_pathology' => 'Clinical pathology',
+            'tumor_markers' => 'Tumor markers',
         ] as $code => $name) {
             $departments[$code] = Department::query()->create([
                 'lab_id' => $lab->id,
@@ -83,6 +88,12 @@ class LaboratorySeeder extends Seeder
             ['sputum', 'Sputum', 'Sterile container', null, 'Deep cough specimen. Note quality.'],
             ['tissue', 'Tissue in fixative', 'Formalin container', '10% neutral buffered formalin', 'Confirm site and laterality on the request.'],
             ['aspirate', 'Aspirate / smear', 'Slide / syringe', null, 'Label the site on every slide.'],
+            ['csf', 'Cerebrospinal fluid', 'CSF tube', null, 'Label the tube number. Do not use the first drops for cell count.'],
+            ['fluid', 'Body fluid', 'Sterile fluid container', null, 'Record the site: pleural, ascitic, synovial or other.'],
+            ['semen', 'Semen', 'Sterile wide-mouth container', null, 'Record abstinence and the time of collection.'],
+            ['swab', 'Swab', 'Transport swab', null, 'Record the anatomical site.'],
+            ['marrow', 'Bone marrow', 'EDTA and smears', 'EDTA', 'Record the aspiration site.'],
+            ['bedside', 'Bedside collection', 'No tube', null, 'Perform and time the procedure at the bedside.'],
         ] as $row) {
             $specimens[$row[0]] = SpecimenType::query()->create([
                 'code' => $row[0],
@@ -315,7 +326,7 @@ class LaboratorySeeder extends Seeder
             return compact('code', 'label', 'loinc', 'unit', 'decimals', 'intervals', 'critical', 'formula') + ['type' => 'numeric'];
         };
 
-        return [
+        return array_merge([
             $this->test('HGB', 'Haemoglobin', 'haematology', 'edta', [$numeric('HGB', 'Haemoglobin', '718-7', 'g/dL', 1, [
                 ['sex' => 'male', 'low' => 14, 'high' => 18] + $abim,
                 ['sex' => 'female', 'low' => 12, 'high' => 16] + $abim,
@@ -443,6 +454,147 @@ class LaboratorySeeder extends Seeder
                 'code' => 'ANA', 'label' => 'ANA', 'type' => 'qualitative', 'options' => ['Negative', 'Positive'], 'loinc' => '8061-4',
             ]], notes: 'ABIM ANA screening threshold is commonly reported to ≤1:40. Record titre and pattern in the comment.'),
             $this->test('RF', 'Rheumatoid factor', 'immunology', 'serum', [$numeric('RF', 'Rheumatoid factor', '11572-5', 'IU/mL', 1, [['high' => 24] + $abim])], notes: 'ABIM nephelometric rheumatoid factor <24 IU/mL.'),
+        ], $this->extendedTests($abim));
+    }
+
+    /**
+     * @param  array{source: string, url: string}  $abim
+     * @return list<array<string, mixed>>
+     */
+    private function extendedTests(array $abim): array
+    {
+        $who = ['source' => 'WHO laboratory manual for the examination and processing of human semen, 6th edition, 2021', 'url' => 'https://www.who.int/publications/i/item/9789240030787'];
+        $num = function (string $code, string $label, ?string $loinc, ?string $unit, int $decimals, array $intervals, ?array $critical = null): array {
+            return [
+                'code' => $code,
+                'label' => $label,
+                'loinc' => $loinc,
+                'unit' => $unit,
+                'decimals' => $decimals,
+                'intervals' => $intervals,
+                'critical' => $critical,
+                'formula' => null,
+                'type' => 'numeric',
+            ];
+        };
+        $text = function (string $code, string $label, string $type = 'narrative', ?array $options = null, ?string $loinc = null): array {
+            return [
+                'code' => $code,
+                'label' => $label,
+                'type' => $type,
+                'options' => $options,
+                'loinc' => $loinc,
+            ];
+        };
+
+        return [
+            $this->test('G6PD', 'G6PD', 'haematology', 'edta', [$num('G6PD', 'G6PD', null, 'U/g Hb', 1, [['low' => 5, 'high' => 15] + $abim])], notes: 'ABIM G6PD is 5–15 units/g of hemoglobin.'),
+            $this->test('SICKLE', 'Sickling test', 'haematology', 'edta', [$text('SICKLE', 'Sickling', 'qualitative', ['Negative', 'Positive'])]),
+            $this->test('HBELEC', 'Haemoglobin electrophoresis', 'haematology', 'edta', [$text('HBELEC', 'Haemoglobin fractions')], method: 'Electrophoresis', notes: 'Record HbA, HbA2, HbF and any variant. Fractions are method specific.'),
+            $this->test('MALARIA', 'Malaria smear', 'haematology', 'edta', [$text('MALARIA', 'Malaria smear', 'qualitative', ['Negative', 'P. falciparum', 'P. vivax', 'Mixed', 'Other'])], method: 'Microscopy'),
+            $this->test('MARROW', 'Bone marrow examination', 'haematology', 'marrow', [$text('MARROW', 'Bone marrow')], price: 180000, notes: 'Record the site, adequacy, and the aspirate or trephine findings.'),
+            $this->test('FIB', 'Fibrinogen', 'coagulation', 'citrate', [$num('FIB', 'Fibrinogen', '3255-7', 'mg/dL', 0, [['low' => 200, 'high' => 400] + $abim])]),
+            $this->test('BT', 'Bleeding time', 'coagulation', 'bedside', [$num('BT', 'Bleeding time', null, 'minutes', 1, [['high' => 8] + $abim])], notes: 'ABIM template bleeding time is <8 minutes. This is a bedside procedure, not a tube test.'),
+            $this->test('LDH', 'LDH', 'biochemistry', 'serum', [$num('LDH', 'Lactate dehydrogenase', '2532-0', 'U/L', 0, [['low' => 80, 'high' => 225] + $abim])]),
+            $this->test('MG', 'Magnesium', 'biochemistry', 'serum', [$num('MG', 'Magnesium', '19123-9', 'mg/dL', 1, [['low' => 1.6, 'high' => 2.6] + $abim])]),
+            $this->test('NH3', 'Ammonia', 'biochemistry', 'edta', [$num('NH3', 'Ammonia', null, 'µg/dL', 0, [['low' => 40, 'high' => 70] + $abim])], notes: 'ABIM plasma ammonia is 40–70 µg/dL. Transport on ice.'),
+            $this->test('CK', 'Creatine kinase', 'biochemistry', 'serum', [$num('CK', 'Creatine kinase', '2157-6', 'U/L', 0, [
+                ['sex' => 'male', 'low' => 55, 'high' => 170] + $abim,
+                ['sex' => 'female', 'low' => 30, 'high' => 135] + $abim,
+            ])]),
+            $this->test('CKMB', 'CK-MB', 'biochemistry', 'serum', [$num('CKMB', 'CK-MB', '13969-1', '% of total CK', 1, [['high' => 5] + $abim])], notes: 'ABIM CK-MB isoenzymes are <5% of total CK.'),
+            $this->test('TROP', 'Troponin I', 'biochemistry', 'serum', [$num('TROP', 'Troponin I', '10839-9', 'ng/mL', 2, [['high' => 0.04] + $abim])], notes: 'ABIM conventional troponin I is ≤0.04 ng/mL. High-sensitivity assays use a different cut-off and are a separate test.'),
+            $this->test('HS_TROP', 'High-sensitivity troponin I', 'biochemistry', 'serum', [$num('HSTROP', 'High-sensitivity troponin I', null, 'ng/L', 1, [
+                ['sex' => 'male', 'high' => 20] + $abim,
+                ['sex' => 'female', 'high' => 15] + $abim,
+            ])], notes: 'ABIM high-sensitivity troponin I is ≤15 ng/L in women and ≤20 ng/L in men.'),
+            $this->test('BNP', 'BNP', 'biochemistry', 'edta', [$num('BNP', 'B-type natriuretic peptide', null, 'pg/mL', 0, [['high' => 100] + $abim])], notes: 'ABIM BNP is <100 pg/mL.'),
+            $this->test('ACR', 'Urine albumin/creatinine ratio', 'biochemistry', 'urine', [$num('ACR', 'Albumin/creatinine ratio', '9318-7', 'mg/g', 1, [['high' => 30] + $abim])], notes: 'ABIM albumin-to-creatinine ratio is <30 mg/g.'),
+            $this->test('EGFR', 'eGFR', 'biochemistry', 'serum', [$num('EGFR', 'eGFR', '98979-8', 'mL/min/1.73 m2', 0, [])], notes: 'Calculate with the laboratory-approved equation. No single reference interval is seeded.'),
+            $this->test('SPEP', 'Serum protein electrophoresis', 'biochemistry', 'serum', [$text('SPEP', 'Protein electrophoresis')], method: 'Electrophoresis'),
+            $this->test('FOLATE', 'Serum folate', 'biochemistry', 'serum', [$num('FOLATE', 'Folate', '2284-8', 'ng/mL', 1, [])], notes: 'Interval depends on the assay. Confirm the manufacturer range before reporting.'),
+            $this->test('PTH', 'Parathyroid hormone', 'endocrinology', 'serum', [$num('PTH', 'Intact PTH', null, 'pg/mL', 0, [['low' => 10, 'high' => 65] + $abim])], notes: 'ABIM intact PTH is 10–65 pg/mL. The dialysis target is different and is not used here.'),
+            $this->test('ACTH', 'ACTH', 'endocrinology', 'edta', [$num('ACTH', 'ACTH', null, 'pg/mL', 0, [['low' => 10, 'high' => 60] + $abim])], notes: 'ABIM morning ACTH is 10–60 pg/mL. Record the collection time.'),
+            $this->test('PRL', 'Prolactin', 'endocrinology', 'serum', [$num('PRL', 'Prolactin', null, 'ng/mL', 1, [['high' => 20] + $abim])], notes: 'ABIM prolactin is <20 ng/mL.'),
+            $this->test('TESTO', 'Testosterone', 'endocrinology', 'serum', [$num('TESTO', 'Total testosterone', '2986-8', 'ng/dL', 0, [
+                ['sex' => 'male', 'low' => 291, 'high' => 1100] + $abim,
+                ['sex' => 'female', 'low' => 18, 'high' => 54] + $abim,
+            ])]),
+            $this->test('FSH', 'FSH', 'endocrinology', 'serum', [$num('FSH', 'FSH', null, 'mIU/mL', 1, [])], notes: 'ABIM FSH values depend on sex and cycle phase. Record the phase; no single interval is seeded.'),
+            $this->test('LH', 'LH', 'endocrinology', 'serum', [$num('LH', 'LH', null, 'mIU/mL', 1, [
+                ['sex' => 'male', 'low' => 2, 'high' => 9] + $abim,
+            ])], notes: 'ABIM adult male LH is 2–9 mIU/mL. Female values depend on cycle phase and are not seeded as one interval.'),
+            $this->test('E2', 'Estradiol', 'endocrinology', 'serum', [$num('E2', 'Estradiol', null, 'pg/mL', 0, [])], notes: 'ABIM estradiol depends on cycle phase and menopause. Record the phase; no single interval is seeded.'),
+            $this->test('PROG', 'Progesterone', 'endocrinology', 'serum', [$num('PROG', 'Progesterone', null, 'ng/mL', 2, [])], notes: 'ABIM progesterone depends on cycle phase. Record the phase.'),
+            $this->test('INSULIN', 'Fasting insulin', 'endocrinology', 'serum', [$num('INSULIN', 'Insulin', '20448-7', 'µIU/mL', 1, [])], notes: 'Record fasting status. Confirm the assay interval locally.'),
+            $this->test('HORMONE', 'Fertility hormone profile', 'endocrinology', 'serum', panel: true, components: ['FSH', 'LH', 'PRL', 'TESTO', 'E2'], price: 140000),
+            $this->test('AFP', 'Alpha-fetoprotein', 'tumor_markers', 'serum', [$num('AFP', 'AFP', null, 'ng/mL', 1, [['high' => 10] + $abim])], notes: 'ABIM serum AFP is <10 ng/mL.'),
+            $this->test('CEA', 'CEA', 'tumor_markers', 'serum', [$num('CEA', 'CEA', null, 'ng/mL', 1, [['high' => 2.5] + $abim])], notes: 'ABIM plasma CEA is <2.5 ng/mL.'),
+            $this->test('CA125', 'CA 125', 'tumor_markers', 'serum', [$num('CA125', 'CA 125', null, 'U/mL', 1, [['high' => 35] + $abim])], notes: 'ABIM CA 125 is <35 U/mL.'),
+            $this->test('CA199', 'CA 19-9', 'tumor_markers', 'serum', [$num('CA199', 'CA 19-9', null, 'U/mL', 1, [['high' => 37] + $abim])], notes: 'ABIM CA 19-9 is 0–37 U/mL.'),
+            $this->test('PSA', 'PSA', 'tumor_markers', 'serum', [$num('PSA', 'PSA', '2857-1', 'ng/mL', 2, [])], notes: 'ABIM states there is no specific normal or abnormal PSA level. Do not apply a universal cut-off.'),
+            $this->test('BHCG', 'Beta-hCG', 'tumor_markers', 'serum', [$num('BHCG', 'Beta-hCG', null, 'U/L', 1, [
+                ['sex' => 'male', 'high' => 1.4] + $abim,
+            ])], notes: 'ABIM male beta-hCG is <1.4 U/L. Pregnancy and postmenopausal values are different, so no female interval is seeded.'),
+            $this->test('ABO', 'ABO group', 'blood_bank', 'edta', [$text('ABO', 'ABO group', 'qualitative', ['A', 'B', 'AB', 'O'], '883-9')]),
+            $this->test('RH', 'Rh D', 'blood_bank', 'edta', [$text('RH', 'Rh D', 'qualitative', ['Positive', 'Negative'])]),
+            $this->test('ABSCR', 'Antibody screen', 'blood_bank', 'edta', [$text('ABSCR', 'Antibody screen', 'qualitative', ['Negative', 'Positive'])]),
+            $this->test('DCT', 'Direct Coombs test', 'blood_bank', 'edta', [$text('DCT', 'Direct antiglobulin test', 'qualitative', ['Negative', 'Positive'])]),
+            $this->test('ICT', 'Indirect Coombs test', 'blood_bank', 'serum', [$text('ICT', 'Indirect antiglobulin test', 'qualitative', ['Negative', 'Positive'])]),
+            $this->test('XMATCH', 'Crossmatch', 'blood_bank', 'edta', [$text('XMATCH', 'Crossmatch', 'qualitative', ['Compatible', 'Incompatible'])], notes: 'Record the donor unit number in the comment. This is not a substitute for the blood-bank worksheet.'),
+            $this->test('BLOODGROUP', 'Blood group and Rh', 'blood_bank', 'edta', panel: true, components: ['ABO', 'RH'], price: 15000),
+            $this->qualitative('MPAG', 'Malaria antigen', 'serology', 'edta', 'MPAG', null, ['Negative', 'P. falciparum', 'P. vivax', 'Mixed']),
+            $this->qualitative('COVIDAG', 'SARS-CoV-2 antigen', 'serology', 'swab', 'COVIDAG', '94558-4'),
+            $this->qualitative('HAVIGM', 'Hepatitis A IgM', 'serology', 'serum', 'HAVIGM'),
+            $this->qualitative('HEVIGM', 'Hepatitis E IgM', 'serology', 'serum', 'HEVIGM'),
+            $this->qualitative('LEPTO', 'Leptospira IgM', 'serology', 'serum', 'LEPTO'),
+            $this->qualitative('CHIKV', 'Chikungunya IgM', 'serology', 'serum', 'CHIKV'),
+            $this->qualitative('SCRUB', 'Scrub typhus IgM', 'serology', 'serum', 'SCRUB'),
+            $this->qualitative('CMVIGM', 'CMV IgM', 'serology', 'serum', 'CMVIGM'),
+            $this->qualitative('RUBG', 'Rubella IgG', 'serology', 'serum', 'RUBG'),
+            $this->test('ASO', 'ASO titre', 'serology', 'serum', [$num('ASO', 'ASO titre', null, 'Todd units', 0, [['high' => 200] + $abim])], notes: 'ABIM antistreptolysin O titre is <200 Todd units.'),
+            $this->test('HPYLORI', 'H. pylori stool antigen', 'serology', 'stool', [$text('HPYLORI', 'H. pylori antigen', 'qualitative', ['Negative', 'Positive'])]),
+            $this->test('UPT', 'Urine pregnancy test', 'urinalysis', 'urine', [$text('UPT', 'hCG', 'qualitative', ['Negative', 'Positive'])]),
+            $this->test('FOBT', 'Fecal occult blood', 'clinical_pathology', 'stool', [$text('FOBT', 'Occult blood', 'qualitative', ['Negative', 'Positive'])]),
+            $this->test('DSDNA', 'Anti-dsDNA', 'immunology', 'serum', [$num('DSDNA', 'Anti-dsDNA', null, 'IU/mL', 1, [['low' => 0, 'high' => 7] + $abim])], notes: 'ABIM antibodies to double-stranded DNA are 0–7 IU/mL.'),
+            $this->test('CCP', 'Anti-CCP', 'immunology', 'serum', [$num('CCP', 'Anti-CCP', null, 'units', 1, [['high' => 20] + $abim])], notes: 'ABIM anti-cyclic citrullinated peptide antibodies are <20 units.'),
+            $this->test('C3', 'Complement C3', 'immunology', 'serum', [$num('C3', 'C3', null, 'mg/dL', 0, [['low' => 100, 'high' => 233] + $abim])]),
+            $this->test('C4', 'Complement C4', 'immunology', 'serum', [$num('C4', 'C4', null, 'mg/dL', 0, [['low' => 14, 'high' => 48] + $abim])]),
+            $this->test('IGE', 'Total IgE', 'immunology', 'serum', [$num('IGE', 'IgE', null, 'IU/mL', 0, [['high' => 380] + $abim])], notes: 'ABIM IgE is <380 IU/mL.'),
+            $this->test('IGG', 'IgG', 'immunology', 'serum', [$num('IGG', 'IgG', null, 'mg/dL', 0, [['low' => 800, 'high' => 1500] + $abim])]),
+            $this->test('IGA', 'IgA', 'immunology', 'serum', [$num('IGA', 'IgA', null, 'mg/dL', 0, [['low' => 90, 'high' => 325] + $abim])]),
+            $this->test('IGM', 'IgM', 'immunology', 'serum', [$num('IGM', 'IgM', null, 'mg/dL', 0, [['low' => 45, 'high' => 150] + $abim])]),
+            $this->test('ANCA', 'ANCA', 'immunology', 'serum', [$text('ANCA', 'ANCA', 'qualitative', ['Negative', 'C-ANCA', 'P-ANCA'])], notes: 'Record the titre and the antigen (PR3 or MPO) in the comment.'),
+            $this->test('ATPO', 'Anti-TPO', 'immunology', 'serum', [$num('ATPO', 'Anti-TPO', null, 'U/mL', 1, [['high' => 2] + $abim])], notes: 'ABIM antithyroid peroxidase antibodies are <2.0 U/mL. The cut-off is assay specific.'),
+            $this->test('PCULT', 'Pus culture and sensitivity', 'microbiology', 'swab', [$text('PCULT', 'Pus culture')], notes: 'Record the site, growth, organism and susceptibility.'),
+            $this->test('STCULT', 'Stool culture', 'microbiology', 'stool', [$text('STCULT', 'Stool culture')]),
+            $this->test('AFB', 'AFB smear', 'microbiology', 'sputum', [$text('AFB', 'AFB smear', 'qualitative', ['Negative', 'Scanty', '1+', '2+', '3+'])], method: 'Ziehl-Neelsen'),
+            $this->test('KOH', 'KOH mount', 'microbiology', 'swab', [$text('KOH', 'KOH mount', 'qualitative', ['Negative', 'Fungal elements seen'])]),
+            $this->test('GRAM', 'Gram stain', 'microbiology', 'swab', [$text('GRAM', 'Gram stain')], method: 'Gram stain'),
+            $this->test('FCULT', 'Fungal culture', 'microbiology', 'swab', [$text('FCULT', 'Fungal culture')]),
+            $this->test('COVIDPCR', 'SARS-CoV-2 PCR', 'molecular', 'swab', [$text('COVIDPCR', 'SARS-CoV-2 RNA', 'qualitative', ['Not detected', 'Detected'])], method: 'Nucleic acid amplification'),
+            $this->test('MTBPCR', 'MTB PCR', 'molecular', 'sputum', [$text('MTBPCR', 'M. tuberculosis', 'qualitative', ['Not detected', 'Detected'])], method: 'Nucleic acid amplification', notes: 'Record rifampicin resistance when the assay reports it.'),
+            $this->test('HBVDNA', 'HBV DNA', 'molecular', 'serum', [$num('HBVDNA', 'HBV DNA', null, 'IU/mL', 0, [])], notes: 'Quantitative viral load. The reportable range is assay specific.'),
+            $this->test('HCVRNA', 'HCV RNA', 'molecular', 'serum', [$num('HCVRNA', 'HCV RNA', null, 'IU/mL', 0, [])], notes: 'Quantitative viral load. The reportable range is assay specific.'),
+            $this->test('HIVVL', 'HIV viral load', 'molecular', 'edta', [$num('HIVVL', 'HIV-1 RNA', null, 'copies/mL', 0, [])], notes: 'Quantitative viral load. The reportable range is assay specific.'),
+            $this->test('HPV', 'HPV DNA', 'molecular', 'swab', [$text('HPV', 'HPV DNA', 'qualitative', ['Not detected', 'Detected'])], notes: 'Record the genotype when the assay identifies one.'),
+            $this->test('HLA', 'HLA typing', 'molecular', 'edta', [$text('HLA', 'HLA type')], notes: 'Record the locus and the resolution of the typing.'),
+            $this->test('PAP', 'Pap smear', 'cytology', 'aspirate', [$text('PAP', 'Pap smear')], price: 80000, notes: 'Record adequacy and the reporting system used, such as Bethesda.'),
+            $this->test('FLUIDCYT', 'Fluid cytology', 'cytology', 'fluid', [$text('FLUIDCYT', 'Fluid cytology')], price: 90000, notes: 'Record the fluid site and adequacy.'),
+            $this->test('SPUTCYT', 'Sputum cytology', 'cytology', 'sputum', [$text('SPUTCYT', 'Sputum cytology')]),
+            $this->test('SEMVOL', 'Semen volume', 'clinical_pathology', 'semen', [$num('SEMVOL', 'Volume', null, 'mL', 1, [['low' => 1.4] + $who])]),
+            $this->test('SEMCONC', 'Sperm concentration', 'clinical_pathology', 'semen', [$num('SEMCONC', 'Sperm concentration', null, 'million/mL', 1, [['low' => 16] + $who])]),
+            $this->test('SEMMOT', 'Sperm progressive motility', 'clinical_pathology', 'semen', [$num('SEMMOT', 'Progressive motility', null, '%', 0, [['low' => 30] + $who])]),
+            $this->test('SEMMORPH', 'Sperm morphology', 'clinical_pathology', 'semen', [$num('SEMMORPH', 'Normal forms', null, '%', 0, [['low' => 4] + $who])]),
+            $this->test('SEMEN', 'Semen analysis', 'clinical_pathology', 'semen', panel: true, components: ['SEMVOL', 'SEMCONC', 'SEMMOT', 'SEMMORPH'], price: 60000, notes: 'WHO 2021 lower reference limits are decision limits for a fertility workup, not a diagnosis.'),
+            $this->test('CSFWBC', 'CSF cell count', 'clinical_pathology', 'csf', [$num('CSFWBC', 'CSF leukocytes', null, 'cells/µL', 0, [['low' => 0, 'high' => 5] + $abim])]),
+            $this->test('CSFPRO', 'CSF protein', 'clinical_pathology', 'csf', [$num('CSFPRO', 'CSF protein', null, 'mg/dL', 0, [['low' => 15, 'high' => 45] + $abim])]),
+            $this->test('CSFGLU', 'CSF glucose', 'clinical_pathology', 'csf', [$num('CSFGLU', 'CSF glucose', null, 'mg/dL', 0, [['low' => 50, 'high' => 75] + $abim])]),
+            $this->test('CSF', 'CSF analysis', 'clinical_pathology', 'csf', panel: true, components: ['CSFWBC', 'CSFPRO', 'CSFGLU'], price: 70000),
+            $this->test('PLEURAL', 'Pleural fluid analysis', 'clinical_pathology', 'fluid', [$text('PLEURAL', 'Pleural fluid')], notes: 'Record appearance, cell count, protein, glucose and any organisms.'),
+            $this->test('ASCITES', 'Ascitic fluid analysis', 'clinical_pathology', 'fluid', [$text('ASCITES', 'Ascitic fluid')], notes: 'Record appearance, cell count, protein and albumin when measured.'),
+            $this->test('SYNOVIAL', 'Synovial fluid analysis', 'clinical_pathology', 'fluid', [$text('SYNOVIAL', 'Synovial fluid')], notes: 'Record appearance, cell count and crystals.'),
+            $this->test('STONE', 'Urinary stone analysis', 'clinical_pathology', 'urine', [$text('STONE', 'Stone composition')], notes: 'Record the method and each constituent.'),
         ];
     }
 
@@ -472,7 +624,7 @@ class LaboratorySeeder extends Seeder
      * @param  list<string>  $options
      * @return array<string, mixed>
      */
-    private function qualitative(string $code, string $name, string $department, string $specimen, string $resultCode, string $loinc, array $options = ['Non-reactive', 'Reactive']): array
+    private function qualitative(string $code, string $name, string $department, string $specimen, string $resultCode, ?string $loinc = null, array $options = ['Non-reactive', 'Reactive']): array
     {
         return $this->test($code, $name, $department, $specimen, [[
             'code' => $resultCode,

@@ -28,6 +28,22 @@ class LaboratoryWorkflowTest extends TestCase
         $this->seed();
     }
 
+    public function test_catalogue_covers_the_major_laboratory_types(): void
+    {
+        $codes = TestDefinition::query()->pluck('code');
+
+        foreach ([
+            'CBC', 'PTINR', 'LFT', 'KFT', 'LIPID', 'THYROID', 'HORMONE',
+            'HIV', 'DENGUE', 'URINE', 'UCULT', 'HISTO', 'PAP', 'FLUIDCYT',
+            'BLOODGROUP', 'XMATCH', 'COVIDPCR', 'MTBPCR', 'HBVDNA',
+            'SEMEN', 'CSF', 'AFP', 'PSA', 'TROP', 'BNP',
+        ] as $code) {
+            $this->assertTrue($codes->contains($code), $code.' is missing from the catalogue.');
+        }
+
+        $this->assertGreaterThanOrEqual(150, $codes->count());
+    }
+
     public function test_cbc_order_creates_a_barcode_and_component_results(): void
     {
         $admin = User::query()->where('email', 'admin@pathlabca.test')->firstOrFail();
