@@ -31,9 +31,10 @@ enum Role: string
             self::LabAdmin => ['*'],
             self::Receptionist => [...$read, 'patient.write', 'order.create', 'invoice.write'],
             self::Phlebotomist => [...$read, 'specimen.collect', 'barcode.print'],
-            self::Technician => [...$read, 'specimen.receive', 'result.enter', 'result.review'],
+            self::Technician => [...$read, 'order.create', 'specimen.receive', 'result.enter', 'result.review'],
             self::Pathologist => [
                 ...$read,
+                'order.create',
                 'result.enter',
                 'result.review',
                 'result.validate',

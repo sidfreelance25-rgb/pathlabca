@@ -29,6 +29,13 @@ class LaboratoryWorkflowTest extends TestCase
         $this->seed();
     }
 
+    public function test_a_technician_can_open_a_new_report(): void
+    {
+        $technician = User::query()->where('email', 'tech@pathlabca.test')->firstOrFail();
+
+        $this->actingAs($technician)->get(route('orders.create'))->assertOk();
+    }
+
     public function test_catalogue_covers_the_major_laboratory_types(): void
     {
         $codes = TestDefinition::query()->pluck('code');

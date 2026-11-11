@@ -1,5 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppearanceToggleTab from '@/components/appearance-tabs';
+import { allows } from '@/lib/lab';
 import {
     ClipboardList,
     FilePlus2,
@@ -23,6 +24,7 @@ const actions = [
         description: 'Register patient results and create a report',
         href: '/orders/create',
         icon: FilePlus2,
+        permission: 'order.create',
     },
     {
         title: 'View reports',
@@ -62,6 +64,15 @@ export default function Dashboard() {
         | undefined;
     const recent = (page.props.recent as RecentReport[] | undefined) ?? [];
     const user = page.props.auth?.user;
+    const permissions = (
+        page.props.auth as { user?: { permissions?: string[] } } | undefined
+    )?.user?.permissions;
+    const visibleActions = actions.filter((action) => {
+        const permission =
+            'permission' in action ? action.permission : undefined;
+
+        return typeof permission !== 'string' || allows(permissions, permission);
+    });
 
     return (
         <>
@@ -128,7 +139,7 @@ export default function Dashboard() {
                         QUICK ACTIONS
                     </h2>
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        {actions.map((action) => (
+                        {visibleActions.map((action) => (
                             <Link
                                 key={action.href}
                                 href={action.href}
