@@ -90,6 +90,16 @@ class ReportController extends Controller
         return back();
     }
 
+    public function downloadOrder(Request $request, Order $order, ReportService $reports): StreamedResponse
+    {
+        $user = $request->user();
+        abort_if($user === null, 403);
+        $report = $reports->issueForDownload($order, $user);
+        abort_if($report->file_path === null || ! Storage::disk('local')->exists($report->file_path), 404);
+
+        return Storage::disk('local')->download($report->file_path, $report->report_number.'.pdf');
+    }
+
     public function download(Request $request, ReportVersion $report): StreamedResponse
     {
         abort_if($report->file_path === null || ! Storage::disk('local')->exists($report->file_path), 404);

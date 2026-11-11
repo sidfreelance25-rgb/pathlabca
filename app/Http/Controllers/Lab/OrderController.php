@@ -44,6 +44,7 @@ class OrderController extends Controller
                     'patient_number' => $patient->patient_number,
                     'sex' => $patient->sex,
                     'date_of_birth' => $patient->date_of_birth?->toDateString(),
+                    'age' => $patient->ageYears(),
                     'phone' => $patient->phone,
                     'is_demo' => $patient->is_demo,
                 ]),
@@ -70,7 +71,7 @@ class OrderController extends Controller
             'patient' => ['required_if:patient_mode,new', 'array'],
             'patient.name' => ['required_if:patient_mode,new', 'nullable', 'string', 'max:120'],
             'patient.sex' => ['required_if:patient_mode,new', 'nullable', 'in:female,male,other'],
-            'patient.date_of_birth' => ['nullable', 'date'],
+            'patient.age' => ['required_if:patient_mode,new', 'nullable', 'integer', 'min:0', 'max:120'],
             'patient.phone' => ['nullable', 'string', 'max:30'],
             'referring_doctor_id' => ['nullable', 'exists:referring_doctors,id'],
             'priority' => ['required', 'in:routine,urgent'],
@@ -115,6 +116,15 @@ class OrderController extends Controller
         return redirect()->route('orders.show', $order);
     }
 
+    private function birthDateFromAge(mixed $age): ?string
+    {
+        if (! is_numeric($age)) {
+            return null;
+        }
+
+        return now()->subYears((int) $age)->toDateString();
+    }
+
     /**
      * @param  array<string, mixed>  $details
      */
@@ -126,7 +136,7 @@ class OrderController extends Controller
             'patient_number' => 'PAT'.str_pad((string) $sequence, 5, '0', STR_PAD_LEFT),
             'name' => (string) ($details['name'] ?? ''),
             'sex' => (string) ($details['sex'] ?? 'other'),
-            'date_of_birth' => $details['date_of_birth'] ?? null,
+            'date_of_birth' => $this->birthDateFromAge($details['age'] ?? null),
             'phone' => $details['phone'] ?? null,
             'is_demo' => false,
         ]);

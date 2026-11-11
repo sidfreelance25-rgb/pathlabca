@@ -42,7 +42,7 @@ class LaboratoryWorkflowTest extends TestCase
             'patient' => [
                 'name' => 'Anita Rao',
                 'sex' => 'female',
-                'date_of_birth' => '1991-03-03',
+                'age' => 34,
                 'phone' => '9811111111',
             ],
             'priority' => 'routine',
@@ -50,6 +50,7 @@ class LaboratoryWorkflowTest extends TestCase
         ]);
 
         $patient = Patient::query()->where('name', 'Anita Rao')->firstOrFail();
+        $this->assertSame(34, $patient->ageYears());
         $order = Order::query()->where('patient_id', $patient->id)->firstOrFail();
         $created->assertRedirect(route('orders.results', $order));
         $this->actingAs($technician)->get(route('orders.results', $order))->assertOk();

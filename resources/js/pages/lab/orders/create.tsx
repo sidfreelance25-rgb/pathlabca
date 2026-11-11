@@ -12,6 +12,7 @@ type PatientOption = {
     patient_number: string;
     sex: string;
     date_of_birth: string | null;
+    age: number | null;
     phone: string | null;
     is_demo: boolean;
 };
@@ -27,22 +28,11 @@ type TestOption = {
     specimen_type: { name: string } | null;
 };
 
-function ageLabel(date: string | null): string {
-    if (!date) {
-        return 'Age not recorded';
-    }
-
-    const born = new Date(date);
-    if (Number.isNaN(born.getTime())) {
-        return date;
-    }
-
-    const years = Math.floor(
-        (Date.now() - born.getTime()) / (365.25 * 24 * 60 * 60 * 1000),
-    );
-
-    return `${years} years · ${date}`;
-}
+const sexes = [
+    ['male', 'Male'],
+    ['female', 'Female'],
+    ['other', 'Other'],
+] as const;
 
 export default function OrderCreate({
     patients,
@@ -63,8 +53,8 @@ export default function OrderCreate({
         patient_id: '',
         patient: {
             name: '',
-            sex: 'female',
-            date_of_birth: '',
+            sex: 'male',
+            age: '',
             phone: '',
         },
         referring_doctor_id: doctors[0]?.id?.toString() ?? '',
@@ -228,7 +218,9 @@ export default function OrderCreate({
                                             Age
                                         </dt>
                                         <dd>
-                                            {ageLabel(chosen.date_of_birth)}
+                                            {chosen.age === null
+                                                ? 'Age not recorded'
+                                                : `${chosen.age} years`}
                                         </dd>
                                         <dt className="text-muted-foreground">
                                             Phone
@@ -254,35 +246,47 @@ export default function OrderCreate({
                                         message={form.errors['patient.name']}
                                     />
                                 </label>
-                                <label className="grid gap-1 text-sm">
+                                <div className="grid gap-1 text-sm">
                                     <Label>Sex</Label>
-                                    <select
-                                        className="h-9 rounded-md border bg-background px-2"
-                                        value={form.data.patient.sex}
-                                        onChange={(event) =>
-                                            form.setData('patient', {
-                                                ...form.data.patient,
-                                                sex: event.target.value,
-                                            })
-                                        }
-                                    >
-                                        <option value="female">Female</option>
-                                        <option value="male">Male</option>
-                                        <option value="other">Other</option>
-                                    </select>
-                                </label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {sexes.map(([value, label]) => (
+                                            <button
+                                                key={value}
+                                                type="button"
+                                                className={`h-9 rounded-md border text-sm ${
+                                                    form.data.patient.sex ===
+                                                    value
+                                                        ? 'bg-foreground text-background'
+                                                        : 'bg-background'
+                                                }`}
+                                                onClick={() =>
+                                                    form.setData('patient', {
+                                                        ...form.data.patient,
+                                                        sex: value,
+                                                    })
+                                                }
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                                 <label className="grid gap-1 text-sm">
-                                    <Label>Date of birth</Label>
+                                    <Label>Age</Label>
                                     <Input
-                                        type="date"
-                                        value={form.data.patient.date_of_birth}
+                                        type="number"
+                                        min={0}
+                                        max={120}
+                                        value={form.data.patient.age}
                                         onChange={(event) =>
                                             form.setData('patient', {
                                                 ...form.data.patient,
-                                                date_of_birth:
-                                                    event.target.value,
+                                                age: event.target.value,
                                             })
                                         }
+                                    />
+                                    <InputError
+                                        message={form.errors['patient.age']}
                                     />
                                 </label>
                                 <label className="grid gap-1 text-sm">

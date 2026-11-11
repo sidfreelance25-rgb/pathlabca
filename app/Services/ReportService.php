@@ -23,6 +23,26 @@ class ReportService
         private ResultService $results,
     ) {}
 
+    public function issueForDownload(Order $order, User $actor): ReportVersion
+    {
+        $existing = ReportVersion::query()
+            ->where('order_id', $order->id)
+            ->whereIn('status', ['released', 'delivered'])
+            ->whereNotNull('file_path')
+            ->latest('id')
+            ->first();
+
+        if ($existing instanceof ReportVersion) {
+            return $existing;
+        }
+
+        $report = $this->render($order, $actor, 'released');
+        $order->update(['status' => 'reported']);
+        $order->items()->update(['status' => 'released']);
+
+        return $report;
+    }
+
     public function preview(Order $order, User $actor): ReportVersion
     {
         return $this->render($order, $actor, 'draft');

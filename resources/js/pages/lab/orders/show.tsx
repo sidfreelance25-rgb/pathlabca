@@ -96,14 +96,11 @@ export default function OrderShow({ order }: OrderShowProps) {
                                 Validate
                             </Button>
                         )}
-                        {allows(permissions, 'report.read') && (
-                            <Button
-                                variant="outline"
-                                onClick={() =>
-                                    router.post(`/orders/${order.id}/report`)
-                                }
-                            >
-                                Draft PDF
+                        {allows(permissions, 'report.download') && (
+                            <Button asChild>
+                                <a href={`/orders/${order.id}/download`} download>
+                                    Download report
+                                </a>
                             </Button>
                         )}
                         {allows(permissions, 'report.release') && (

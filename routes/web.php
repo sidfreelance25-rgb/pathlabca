@@ -67,6 +67,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('reports/{report}', [ReportController::class, 'show'])->name('reports.show');
         Route::post('orders/{order}/report', [ReportController::class, 'preview'])->name('reports.preview');
+        Route::get('orders/{order}/download', [ReportController::class, 'downloadOrder'])
+            ->middleware('lab.permission:report.download')->name('orders.download');
     });
     Route::post('orders/{order}/release', [ReportController::class, 'release'])
         ->middleware('lab.permission:report.release')->name('reports.release');

@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -76,16 +76,21 @@ export default function OrderResults({
                     form.post(`/orders/${order.id}/results`);
                 }}
             >
-                <div>
-                    <h1 className="text-2xl font-semibold">
-                        Results · {order.order_number}
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                        {order.patient.name}
-                        {order.patient.is_demo
-                            ? ' · demonstration values are flagged DEMO and cannot be delivered as a clinical report'
-                            : ''}
-                    </p>
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <h1 className="text-2xl font-semibold">
+                            Results · {order.order_number}
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            {order.patient.name}
+                            {order.patient.is_demo
+                                ? ' · demonstration values are flagged DEMO and cannot be delivered as a clinical report'
+                                : ''}
+                        </p>
+                    </div>
+                    <Button asChild variant="outline">
+                        <Link href={`/orders/${order.id}`}>Back</Link>
+                    </Button>
                 </div>
                 {sections.map((section) => (
                     <section key={section.name} className="rounded-xl border">
