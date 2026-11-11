@@ -31,12 +31,16 @@ export default function Profile({
     mustVerifyEmail,
     status,
     letterhead,
+    letterheadName = 'Shared letterhead',
+    letterheadScope = 'global',
     letterheadMissing = [],
     letterheadSaved = false,
 }: {
     mustVerifyEmail: boolean;
     status?: string;
     letterhead?: { lab: LetterheadLab };
+    letterheadName?: string;
+    letterheadScope?: 'global' | 'personal';
     letterheadMissing?: string[];
     letterheadSaved?: boolean;
 }) {
@@ -154,7 +158,11 @@ export default function Profile({
                 <Heading
                     variant="small"
                     title="Laboratory letterhead"
-                    description="Lab name, doctor and header design are saved on your account and used on reports you release."
+                    description={
+                        letterheadScope === 'personal'
+                            ? `${letterheadName} belongs to your account and is used on reports you release.`
+                            : `${letterheadName} is the shared template. Saving a change keeps a copy on your account.`
+                    }
                 />
                 <dl className="grid grid-cols-2 gap-2 text-sm">
                     <dt className="text-muted-foreground">Lab name</dt>

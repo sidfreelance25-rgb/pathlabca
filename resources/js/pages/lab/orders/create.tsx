@@ -10,6 +10,7 @@ type TestOption = {
     code: string;
     price_paise: number;
     is_panel: boolean;
+    scope?: 'main' | 'copy' | 'personal';
     department: { name: string };
     specimen_type: { name: string };
 };
@@ -145,6 +146,12 @@ export default function OrderCreate({
                                         <span className="block text-muted-foreground">
                                             {test.specimen_type.name} ·{' '}
                                             {rupees(test.price_paise)}
+                                            {test.scope === 'copy'
+                                                ? ' · your copy'
+                                                : ''}
+                                            {test.scope === 'personal'
+                                                ? ' · your test'
+                                                : ''}
                                         </span>
                                     </span>
                                 </label>

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Models\LetterheadTemplate;
+use App\Models\User;
 use App\Support\Letterhead;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -21,14 +23,20 @@ class ProfileController extends Controller
     public function edit(Request $request): Response
     {
         $user = $request->user();
+        $template = Letterhead::activeTemplate($user);
         $design = Letterhead::forUser($user);
+        $personal = $template instanceof LetterheadTemplate
+            && $user instanceof User
+            && $template->owner_user_id === $user->id;
 
         return Inertia::render('settings/profile', [
             'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
             'letterhead' => $design,
+            'letterheadName' => $template instanceof LetterheadTemplate ? $template->name : 'Shared letterhead',
+            'letterheadScope' => $personal ? 'personal' : 'global',
             'letterheadMissing' => Letterhead::missing($design),
-            'letterheadSaved' => is_array($user?->letterhead),
+            'letterheadSaved' => $personal,
         ]);
     }
 

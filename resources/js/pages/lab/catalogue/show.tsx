@@ -1,4 +1,5 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+import { Button } from '@/components/ui/button';
 
 type Interval = {
     sex: string;
@@ -46,7 +47,23 @@ type TestNode = {
     result_definitions: ResultDef[];
 };
 
-export default function CatalogueShow({ test }: { test: TestNode }) {
+export default function CatalogueShow({
+    test,
+    scope,
+    ownerName,
+    canPromote,
+}: {
+    test: TestNode;
+    scope: 'main' | 'copy' | 'personal';
+    ownerName?: string | null;
+    canPromote: boolean;
+}) {
+    const scopeText =
+        scope === 'main'
+            ? 'Main test'
+            : scope === 'copy'
+              ? 'Your copy of a main test'
+              : 'Personal test';
     const rows = test.is_panel
         ? test.components.flatMap((component) =>
               component.result_definitions.map((result) => ({
@@ -64,7 +81,24 @@ export default function CatalogueShow({ test }: { test: TestNode }) {
             <Head title={test.name} />
             <div className="flex flex-col gap-4 p-4">
                 <div>
-                    <h1 className="text-2xl font-semibold">{test.name}</h1>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <h1 className="text-2xl font-semibold">{test.name}</h1>
+                        <span className="rounded-full border px-2 py-0.5 text-xs">
+                            {scopeText}
+                        </span>
+                        {canPromote && (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                    router.post(`/catalogue/${test.id}/promote`)
+                                }
+                            >
+                                Promote to main
+                            </Button>
+                        )}
+                    </div>
                     <p className="text-sm text-muted-foreground">
                         {test.code} · {test.department.name} ·{' '}
                         {test.specimen_type.name}
@@ -72,6 +106,18 @@ export default function CatalogueShow({ test }: { test: TestNode }) {
                             ? ` · ${test.specimen_type.container}`
                             : ''}
                     </p>
+                    {scope === 'personal' && ownerName && (
+                        <p className="text-sm text-muted-foreground">
+                            Owned by {ownerName}. Promoting it makes this the
+                            shared test.
+                        </p>
+                    )}
+                    {scope === 'main' && (
+                        <p className="max-w-3xl text-sm text-muted-foreground">
+                            This test is shared. Staff who have not saved their
+                            own copy use this version.
+                        </p>
+                    )}
                     {test.collection_notes && (
                         <p className="mt-2 max-w-3xl text-sm">
                             {test.collection_notes}

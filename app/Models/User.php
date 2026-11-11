@@ -35,8 +35,9 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $designation
  * @property string|null $qualification
  * @property array<string, mixed>|null $letterhead
+ * @property int|null $active_letterhead_id
  */
-#[Fillable(['name', 'email', 'password', 'role', 'designation', 'qualification', 'lab_id', 'branch_id', 'letterhead'])]
+#[Fillable(['name', 'email', 'password', 'role', 'designation', 'qualification', 'lab_id', 'branch_id', 'letterhead', 'active_letterhead_id'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'letterhead'])]
 class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 {
@@ -72,6 +73,19 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function isLabAdmin(): bool
+    {
+        return $this->role === Role::LabAdmin;
+    }
+
+    /**
+     * @return BelongsTo<LetterheadTemplate, $this>
+     */
+    public function activeLetterhead(): BelongsTo
+    {
+        return $this->belongsTo(LetterheadTemplate::class, 'active_letterhead_id');
     }
 
     /**

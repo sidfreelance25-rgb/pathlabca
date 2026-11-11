@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class TestDefinition extends Model
 {
     protected $fillable = [
-        'lab_id', 'owner_user_id', 'department_id', 'specimen_type_id', 'code', 'name', 'loinc', 'synonyms',
+        'lab_id', 'owner_user_id', 'source_test_id', 'department_id', 'specimen_type_id', 'code', 'name', 'loinc', 'synonyms',
         'method', 'is_panel', 'price_paise', 'tat_minutes', 'report_section', 'display_order',
         'catalogue_version', 'active', 'collection_notes',
     ];
@@ -32,6 +32,22 @@ class TestDefinition extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_user_id');
+    }
+
+    /**
+     * @return BelongsTo<self, $this>
+     */
+    public function source(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'source_test_id');
     }
 
     /**

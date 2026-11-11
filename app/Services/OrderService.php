@@ -8,29 +8,20 @@ use App\Models\Order;
 use App\Models\Patient;
 use App\Models\Specimen;
 use App\Models\SpecimenType;
-use App\Models\TestDefinition;
 use App\Models\User;
-use App\Models\UserTestSetting;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class OrderService
 {
-    public function __construct(private AuditRecorder $audit) {}
+    public function __construct(private AuditRecorder $audit, private CatalogueScope $catalogue) {}
 
     /**
      * @param  list<int>  $testIds
      */
     public function place(User $actor, Patient $patient, Branch $branch, array $testIds, string $priority, ?int $doctorId, ?string $notes): Order
     {
-        $tests = TestDefinition::query()
-            ->where('lab_id', $patient->lab_id)
-            ->where('active', true)
-            ->where(function ($query) use ($actor): void {
-                $query->whereNull('owner_user_id')->orWhere('owner_user_id', $actor->id);
-            })
-            ->whereIn('id', $testIds)
-            ->get();
+        $tests = $this->catalogue->resolveForOrder($actor, $testIds);
 
         if ($tests->isEmpty()) {
             throw ValidationException::withMessages([
@@ -53,13 +44,9 @@ class OrderService
 
             $amount = 0;
             $specimenTypes = [];
-            $prices = UserTestSetting::query()
-                ->where('user_id', $actor->id)
-                ->whereIn('test_definition_id', $tests->pluck('id'))
-                ->pluck('price_paise', 'test_definition_id');
 
             foreach ($tests as $test) {
-                $price = $prices[$test->id] ?? $test->price_paise;
+                $price = $test->price_paise;
                 $order->items()->create([
                     'test_definition_id' => $test->id,
                     'status' => 'pending',

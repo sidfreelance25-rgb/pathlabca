@@ -13,6 +13,7 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::get('settings/letterhead', [LetterheadController::class, 'edit'])->name('letterhead.edit');
     Route::put('settings/letterhead', [LetterheadController::class, 'update'])->name('letterhead.update');
+    Route::post('settings/letterhead/{letterheadTemplate}/activate', [LetterheadController::class, 'activate'])->name('letterhead.activate');
     Route::post('settings/letterhead/preview', [LetterheadController::class, 'preview'])->name('letterhead.preview');
 });
 

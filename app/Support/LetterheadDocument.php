@@ -53,9 +53,11 @@ class LetterheadDocument
         $profile = $directory.'/chrome-'.uniqid('', true);
         mkdir($profile);
         file_put_contents($htmlPath, $html);
-        $command = 'google-chrome --headless --disable-gpu --no-sandbox --user-data-dir='.escapeshellarg($profile).' --no-pdf-header-footer --virtual-time-budget=8000 --print-to-pdf='.escapeshellarg($pdfPath).' '.escapeshellarg($htmlPath);
-        exec($command, $output, $code);
-        $binary = ($code === 0 && is_file($pdfPath)) ? file_get_contents($pdfPath) : false;
+        $chrome = is_executable('/opt/google/chrome/chrome') ? '/opt/google/chrome/chrome' : 'google-chrome';
+        $command = 'timeout 25 '.escapeshellarg($chrome).' --headless --disable-gpu --no-sandbox --user-data-dir='.escapeshellarg($profile).' --no-pdf-header-footer --virtual-time-budget=8000 --print-to-pdf='.escapeshellarg($pdfPath).' '.escapeshellarg($htmlPath);
+        exec($command);
+        $contents = is_file($pdfPath) ? file_get_contents($pdfPath) : false;
+        $binary = is_string($contents) && str_starts_with($contents, '%PDF') ? $contents : false;
         @unlink($htmlPath);
         @unlink($pdfPath);
         exec('rm -rf '.escapeshellarg($profile));

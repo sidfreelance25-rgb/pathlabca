@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Patient;
 use App\Models\ReferringDoctor;
 use App\Models\TestDefinition;
+use App\Services\CatalogueScope;
 use App\Services\OrderService;
 use App\Services\ResultService;
 use Illuminate\Http\RedirectResponse;
@@ -27,36 +28,24 @@ class OrderController extends Controller
         ]);
     }
 
-    public function create(Request $request): Response
+    public function create(Request $request, CatalogueScope $scope): Response
     {
         $user = $request->user();
         abort_if($user === null, 403);
-        $prices = \App\Models\UserTestSetting::query()
-            ->where('user_id', $user->id)
-            ->pluck('price_paise', 'test_definition_id');
-
-        $tests = TestDefinition::query()
-            ->with('department:id,name', 'specimenType:id,name')
-            ->where('active', true)
-            ->where(function ($query) use ($user): void {
-                $query->whereNull('owner_user_id')->orWhere('owner_user_id', $user->id);
-            })
-            ->orderBy('display_order')
-            ->get(['id', 'name', 'code', 'department_id', 'specimen_type_id', 'price_paise', 'is_panel', 'tat_minutes'])
-            ->map(function (TestDefinition $test) use ($prices): TestDefinition {
-                $price = $prices->get($test->id);
-
-                if ($price !== null) {
-                    $test->price_paise = $price;
-                }
-
-                return $test;
-            });
 
         return Inertia::render('lab/orders/create', [
             'patients' => Patient::query()->orderBy('name')->get(['id', 'name', 'patient_number', 'is_demo']),
             'doctors' => ReferringDoctor::query()->orderBy('name')->get(['id', 'name', 'qualification']),
-            'tests' => $tests,
+            'tests' => $scope->orderable($user)->map(fn (TestDefinition $test): array => [
+                'id' => $test->id,
+                'name' => $test->name,
+                'code' => $test->code,
+                'price_paise' => $test->price_paise,
+                'is_panel' => $test->is_panel,
+                'scope' => $test->owner_user_id === null ? 'main' : ($test->source_test_id === null ? 'personal' : 'copy'),
+                'department' => $test->department,
+                'specimen_type' => $test->specimenType,
+            ])->values(),
         ]);
     }
 

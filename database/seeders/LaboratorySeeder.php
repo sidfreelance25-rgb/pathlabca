@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Models\CriticalLimit;
 use App\Models\Department;
 use App\Models\Lab;
+use App\Models\LetterheadTemplate;
 use App\Models\Patient;
 use App\Models\ReferenceInterval;
 use App\Models\ReferringDoctor;
@@ -18,6 +19,7 @@ use App\Services\OrderService;
 use App\Services\ReportService;
 use App\Services\ResultService;
 use App\Services\SpecimenService;
+use App\Support\Letterhead;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -107,6 +109,7 @@ class LaboratorySeeder extends Seeder
         $tests = $this->catalogue($lab, $departments, $specimens);
         $this->templates($lab, $branch, $departments);
         $staff = $this->staff($lab, $branch);
+        $this->letterhead($lab, $staff['sign']);
         ReferringDoctor::query()->create([
             'lab_id' => $lab->id,
             'name' => 'Dr Meera Iyer',
@@ -196,6 +199,16 @@ class LaboratorySeeder extends Seeder
         }
 
         return $created;
+    }
+
+    private function letterhead(Lab $lab, User $signatory): void
+    {
+        LetterheadTemplate::query()->create([
+            'lab_id' => $lab->id,
+            'name' => 'Laboratory letterhead',
+            'design' => Letterhead::defaultsFromLab($lab, $signatory),
+            'is_default' => true,
+        ]);
     }
 
     /**

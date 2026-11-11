@@ -3,13 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\CriticalAlert;
+use App\Models\LetterheadTemplate;
 use App\Models\Patient;
 use App\Models\ReportVersion;
 use App\Models\Result;
 use App\Models\Specimen;
 use App\Models\TestDefinition;
 use App\Models\User;
-use App\Models\UserTestSetting;
 use App\Services\OrderService;
 use App\Services\ReportService;
 use App\Services\ResultService;
@@ -51,24 +51,120 @@ class LaboratoryWorkflowTest extends TestCase
         $technician = User::query()->where('email', 'tech@pathlabca.test')->firstOrFail();
         $cbc = TestDefinition::query()->where('code', 'CBC')->whereNull('owner_user_id')->firstOrFail();
         $sharedPrice = $cbc->price_paise;
+        $shared = LetterheadTemplate::query()->whereNull('owner_user_id')->where('is_default', true)->firstOrFail();
 
-        $this->actingAs($admin)->patch(route('catalogue.update', $cbc), [
+        $this->actingAs($technician)->patch(route('catalogue.update', $cbc), [
             'name' => 'My CBC',
-            'price_rupees' => 999,
+            'price_rupees' => 111,
             'active' => true,
         ])->assertRedirect();
 
-        $this->assertSame(99900, UserTestSetting::query()->where('user_id', $admin->id)->where('test_definition_id', $cbc->id)->value('price_paise'));
-        $this->assertNull(UserTestSetting::query()->where('user_id', $technician->id)->first());
         $cbc->refresh();
         $this->assertSame($sharedPrice, $cbc->price_paise);
+        $copy = TestDefinition::query()->where('owner_user_id', $technician->id)->where('source_test_id', $cbc->id)->firstOrFail();
+        $this->assertSame('My CBC', $copy->name);
+        $this->assertSame(11100, $copy->price_paise);
+        $this->assertSame(14, $copy->components()->count());
+        $this->assertSame(1, TestDefinition::query()->where('owner_user_id', $technician->id)->where('source_test_id', $cbc->id)->count());
 
-        $this->actingAs($admin)->put(route('letterhead.update'), [
+        $this->actingAs($technician)->patch(route('catalogue.update', $cbc), [
+            'name' => 'My CBC',
+            'price_rupees' => 112,
+            'active' => true,
+        ])->assertRedirect();
+        $this->assertSame(11200, $copy->refresh()->price_paise);
+        $this->assertSame(1, TestDefinition::query()->where('owner_user_id', $technician->id)->where('source_test_id', $cbc->id)->count());
+
+        $patient = Patient::query()->create([
+            'lab_id' => $technician->lab_id,
+            'patient_number' => 'PAT88001',
+            'name' => 'Copy Patient',
+            'sex' => 'female',
+            'date_of_birth' => '1992-02-02',
+            'is_demo' => false,
+        ]);
+        $this->assertNotNull($technician->branch);
+        $order = app(OrderService::class)->place($technician, $patient, $technician->branch, [$cbc->id], 'routine', null, null);
+        $this->assertSame($copy->id, $order->items->first()?->test_definition_id);
+        $this->assertSame(11200, $order->items->first()?->price_paise);
+
+        $this->actingAs($admin)->patch(route('catalogue.update', $cbc), [
+            'name' => 'CBC',
+            'price_rupees' => 222,
+            'active' => true,
+        ])->assertRedirect();
+        $this->assertSame(22200, $cbc->refresh()->price_paise);
+        $this->assertSame(11200, $copy->refresh()->price_paise);
+
+        $this->actingAs($technician)->post(route('catalogue.promote', $copy))->assertForbidden();
+        $this->actingAs($admin)->post(route('catalogue.promote', $copy))->assertRedirect();
+        $this->assertSame(11200, $cbc->refresh()->price_paise);
+        $this->assertNotNull(TestDefinition::query()->find($copy->id));
+
+        $plain = TestDefinition::query()->whereNull('owner_user_id')->where('is_panel', false)->firstOrFail();
+        $this->actingAs($technician)->patch(route('catalogue.update', $plain), [
+            'name' => 'Bench copy',
+            'price_rupees' => 15,
+            'active' => true,
+        ])->assertRedirect();
+        $plainCopy = TestDefinition::query()->where('owner_user_id', $technician->id)->where('source_test_id', $plain->id)->firstOrFail();
+        $this->actingAs($admin)->post(route('catalogue.promote', $plainCopy))->assertRedirect();
+        $this->assertSame(1500, $plain->refresh()->price_paise);
+        $this->assertSame('Bench copy', $plain->name);
+        $this->assertNull(TestDefinition::query()->find($plainCopy->id));
+
+        $this->actingAs($technician)->post(route('catalogue.store'), [
+            'name' => 'Desk smear',
+            'code' => 'DESKSMEAR',
+            'department_id' => $cbc->department_id,
+            'specimen_type_id' => $cbc->specimen_type_id,
+            'price_rupees' => 80,
+            'unit' => 'qual',
+        ])->assertRedirect();
+        $personal = TestDefinition::query()->where('code', 'DESKSMEAR')->firstOrFail();
+        $this->assertSame($technician->id, $personal->owner_user_id);
+
+        $this->actingAs($admin)->post(route('catalogue.store'), [
+            'name' => 'Admin panel',
+            'code' => 'ADMINTEST',
+            'department_id' => $cbc->department_id,
+            'specimen_type_id' => $cbc->specimen_type_id,
+            'price_rupees' => 50,
+        ])->assertRedirect();
+        $this->assertNull(TestDefinition::query()->where('code', 'ADMINTEST')->value('owner_user_id'));
+
+        $this->actingAs($admin)->post(route('catalogue.promote', $personal))->assertRedirect();
+        $this->assertNull($personal->refresh()->owner_user_id);
+
+        $this->actingAs($technician)->put(route('letterhead.update'), $this->letterheadPayload($shared->id, 'City Pathology', 'save'))->assertRedirect();
+        $shared->refresh();
+        $this->assertSame('PathLabCA', $shared->design['lab']['name'] ?? null);
+        $mine = LetterheadTemplate::query()->where('owner_user_id', $technician->id)->firstOrFail();
+        $this->assertSame($shared->id, $mine->source_letterhead_id);
+        $this->assertSame('City Pathology', $mine->design['lab']['name'] ?? null);
+        $this->assertSame($mine->id, $technician->refresh()->active_letterhead_id);
+        $this->assertNull(LetterheadTemplate::query()->where('owner_user_id', $admin->id)->first());
+
+        $this->actingAs($admin)->put(route('letterhead.update'), $this->letterheadPayload($shared->id, 'Central Laboratory', 'save'))->assertRedirect();
+        $this->assertSame('Central Laboratory', $shared->refresh()->design['lab']['name'] ?? null);
+        $this->assertSame('City Pathology', $mine->refresh()->design['lab']['name'] ?? null);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function letterheadPayload(int $id, string $labName, string $intent): array
+    {
+        return [
+            'letterhead_id' => $id,
+            'name' => 'Bench letterhead',
+            'intent' => $intent,
+            'make_default' => false,
             'theme' => 't3',
             'colors' => ['t3' => ['c1' => '#ff7a00', 'c2' => '#e2b53a', 'c3' => '#002d6a']],
             'hide' => [],
             'lab' => [
-                'name' => 'City Pathology',
+                'name' => $labName,
                 'tagline' => 'Accurate | Caring | Instant',
                 'address' => '12 Clinic Road',
                 'phone' => '9800000000',
@@ -80,11 +176,7 @@ class LaboratoryWorkflowTest extends TestCase
                 'doctor' => 'Dr. Vimal Shah',
                 'qual' => 'MD Pathology',
             ],
-        ])->assertRedirect();
-
-        $this->assertSame('City Pathology', $admin->refresh()->letterhead['lab']['name'] ?? null);
-        $this->assertSame('Dr. Vimal Shah', $admin->letterhead['lab']['doctor'] ?? null);
-        $this->assertNull($technician->refresh()->letterhead);
+        ];
     }
 
     public function test_cbc_order_creates_a_barcode_and_component_results(): void

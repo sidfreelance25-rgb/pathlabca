@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\LetterheadTemplate;
 use App\Models\User;
 
 class Letterhead
@@ -11,7 +12,15 @@ class Letterhead
      */
     public static function defaults(?User $user = null): array
     {
-        $lab = $user?->lab;
+        return self::defaultsFromLab($user?->lab, $user);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function defaultsFromLab(?object $lab, ?User $user = null): array
+    {
+        $licence = self::text($lab, 'licence_number');
 
         return [
             'theme' => 't1',
@@ -20,12 +29,12 @@ class Letterhead
             'logo' => '',
             'sign' => '',
             'lab' => [
-                'name' => $lab->name ?? '',
+                'name' => self::text($lab, 'name'),
                 'tagline' => 'Accurate | Caring | Instant',
-                'address' => $lab->address ?? '',
-                'phone' => $lab->phone ?? '',
-                'email' => $lab->email ?? ($user->email ?? ''),
-                'iso' => $lab?->licence_number ? 'Licence '.$lab->licence_number : '',
+                'address' => self::text($lab, 'address'),
+                'phone' => self::text($lab, 'phone'),
+                'email' => self::text($lab, 'email') !== '' ? self::text($lab, 'email') : ($user->email ?? ''),
+                'iso' => $licence !== '' ? 'Licence '.$licence : '',
                 'footerNote' => 'Open daily. Reference intervals must be confirmed for the local method.',
                 'techName' => '',
                 'techRole' => 'Lab Technician',
@@ -40,14 +49,51 @@ class Letterhead
      */
     public static function forUser(?User $user): array
     {
-        $defaults = self::defaults($user);
-        $saved = $user?->letterhead;
+        $template = self::activeTemplate($user);
 
-        if (! is_array($saved)) {
-            return $defaults;
+        if ($template instanceof LetterheadTemplate) {
+            return self::normalize($template->design, $user);
         }
 
+        return self::defaults($user);
+    }
+
+    public static function activeTemplate(?User $user): ?LetterheadTemplate
+    {
+        if ($user === null || $user->lab_id === null) {
+            return null;
+        }
+
+        $active = $user->active_letterhead_id === null
+            ? null
+            : LetterheadTemplate::query()->find($user->active_letterhead_id);
+
+        if ($active instanceof LetterheadTemplate && ($active->owner_user_id === null || $active->owner_user_id === $user->id)) {
+            return $active;
+        }
+
+        return LetterheadTemplate::query()
+            ->where('lab_id', $user->lab_id)
+            ->whereNull('owner_user_id')
+            ->orderByDesc('is_default')
+            ->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $saved
+     * @return array<string, mixed>
+     */
+    public static function normalize(array $saved, ?User $user): array
+    {
+        $defaults = self::defaults($user);
         $lab = is_array($saved['lab'] ?? null) ? $saved['lab'] : [];
+        $merged = array_merge($defaults['lab'], $lab);
+
+        foreach (['doctor', 'qual', 'techName'] as $key) {
+            if (trim((string) ($merged[$key] ?? '')) === '') {
+                $merged[$key] = $defaults['lab'][$key] ?? '';
+            }
+        }
 
         return [
             'theme' => is_string($saved['theme'] ?? null) ? $saved['theme'] : $defaults['theme'],
@@ -55,8 +101,15 @@ class Letterhead
             'hide' => is_array($saved['hide'] ?? null) ? $saved['hide'] : [],
             'logo' => is_string($saved['logo'] ?? null) ? $saved['logo'] : '',
             'sign' => is_string($saved['sign'] ?? null) ? $saved['sign'] : '',
-            'lab' => array_merge($defaults['lab'], $lab),
+            'lab' => $merged,
         ];
+    }
+
+    private static function text(?object $source, string $key): string
+    {
+        $value = data_get($source, $key, '');
+
+        return is_string($value) ? $value : '';
     }
 
     /**
