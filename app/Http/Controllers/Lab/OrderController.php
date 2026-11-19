@@ -145,7 +145,7 @@ class OrderController extends Controller
         return $patient;
     }
 
-    public function show(Order $order): Response
+    public function show(Request $request, Order $order): Response
     {
         $order->load([
             'patient',
@@ -163,6 +163,10 @@ class OrderController extends Controller
 
         return Inertia::render('lab/orders/show', [
             'order' => $order,
+            'whatsapp' => [
+                'connected' => $request->user()?->whatsappAccount !== null,
+                'number' => $request->user()?->whatsappAccount?->display_number,
+            ],
         ]);
     }
 

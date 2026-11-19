@@ -69,6 +69,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('orders/{order}/report', [ReportController::class, 'preview'])->name('reports.preview');
         Route::get('orders/{order}/download', [ReportController::class, 'downloadOrder'])
             ->middleware('lab.permission:report.download')->name('orders.download');
+        Route::post('orders/{order}/whatsapp', [ReportController::class, 'sendWhatsapp'])
+            ->middleware('lab.permission:report.download')->name('orders.whatsapp');
     });
     Route::post('orders/{order}/release', [ReportController::class, 'release'])
         ->middleware('lab.permission:report.release')->name('reports.release');

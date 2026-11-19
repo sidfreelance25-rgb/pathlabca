@@ -22,6 +22,11 @@ const sidebarNavItems: NavItem[] = [
         icon: null,
     },
     {
+        title: 'WhatsApp',
+        href: '/settings/whatsapp',
+        icon: null,
+    },
+    {
         title: 'Security',
         href: editSecurity(),
         icon: null,

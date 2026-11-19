@@ -13,6 +13,7 @@ type OrderShowProps = {
             id: number;
             name: string;
             patient_number: string;
+            phone: string | null;
             is_demo: boolean;
             sex: string;
         };
@@ -47,7 +48,12 @@ type OrderShowProps = {
     };
 };
 
-export default function OrderShow({ order }: OrderShowProps) {
+export default function OrderShow({
+    order,
+    whatsapp,
+}: OrderShowProps & {
+    whatsapp: { connected: boolean; number: string | null };
+}) {
     const permissions = (
         usePage().props.auth as { user?: { permissions?: string[] } }
     ).user?.permissions;
@@ -98,11 +104,28 @@ export default function OrderShow({ order }: OrderShowProps) {
                         )}
                         {allows(permissions, 'report.download') && (
                             <Button asChild>
-                                <a href={`/orders/${order.id}/download`} download>
+                                <a
+                                    href={`/orders/${order.id}/download`}
+                                    download
+                                >
                                     Download report
                                 </a>
                             </Button>
                         )}
+                        {allows(permissions, 'report.download') &&
+                            whatsapp.connected &&
+                            order.patient.phone && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                        router.post(
+                                            `/orders/${order.id}/whatsapp`,
+                                        )
+                                    }
+                                >
+                                    Send on WhatsApp
+                                </Button>
+                            )}
                         {allows(permissions, 'report.release') && (
                             <Button
                                 onClick={() =>
@@ -114,6 +137,27 @@ export default function OrderShow({ order }: OrderShowProps) {
                         )}
                     </div>
                 </div>
+                {allows(permissions, 'report.download') &&
+                    !whatsapp.connected && (
+                        <p className="text-sm text-muted-foreground">
+                            Connect your own WhatsApp number in{' '}
+                            <Link
+                                href="/settings/whatsapp"
+                                className="underline"
+                            >
+                                settings
+                            </Link>{' '}
+                            before sending this report.
+                        </p>
+                    )}
+                {allows(permissions, 'report.download') &&
+                    whatsapp.connected &&
+                    !order.patient.phone && (
+                        <p className="text-sm text-muted-foreground">
+                            This patient has no phone number, so the report
+                            cannot be sent on WhatsApp.
+                        </p>
+                    )}
                 {order.invoice && (
                     <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
                         <span>

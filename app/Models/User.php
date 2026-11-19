@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -86,6 +87,14 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function activeLetterhead(): BelongsTo
     {
         return $this->belongsTo(LetterheadTemplate::class, 'active_letterhead_id');
+    }
+
+    /**
+     * @return HasOne<WhatsappAccount, $this>
+     */
+    public function whatsappAccount(): HasOne
+    {
+        return $this->hasOne(WhatsappAccount::class);
     }
 
     /**

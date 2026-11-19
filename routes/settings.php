@@ -3,6 +3,7 @@
 use App\Http\Controllers\Settings\LetterheadController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
+use App\Http\Controllers\Settings\WhatsappController;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +16,9 @@ Route::middleware(['auth'])->group(function () {
     Route::put('settings/letterhead', [LetterheadController::class, 'update'])->name('letterhead.update');
     Route::post('settings/letterhead/{letterheadTemplate}/activate', [LetterheadController::class, 'activate'])->name('letterhead.activate');
     Route::post('settings/letterhead/preview', [LetterheadController::class, 'preview'])->name('letterhead.preview');
+    Route::get('settings/whatsapp', [WhatsappController::class, 'edit'])->name('whatsapp.edit');
+    Route::put('settings/whatsapp', [WhatsappController::class, 'update'])->name('whatsapp.update');
+    Route::delete('settings/whatsapp', [WhatsappController::class, 'destroy'])->name('whatsapp.destroy');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

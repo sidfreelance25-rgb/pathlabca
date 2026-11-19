@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\ReportTemplate;
 use App\Models\ReportVersion;
 use App\Services\ReportService;
+use App\Services\WhatsAppReportSender;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -98,6 +99,16 @@ class ReportController extends Controller
         abort_if($report->file_path === null || ! Storage::disk('local')->exists($report->file_path), 404);
 
         return Storage::disk('local')->download($report->file_path, $report->report_number.'.pdf');
+    }
+
+    public function sendWhatsapp(Request $request, Order $order, WhatsAppReportSender $whatsapp): RedirectResponse
+    {
+        $user = $request->user();
+        abort_if($user === null, 403);
+        $whatsapp->sendReport($user, $order);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Report sent on WhatsApp.']);
+
+        return back();
     }
 
     public function download(Request $request, ReportVersion $report): StreamedResponse
